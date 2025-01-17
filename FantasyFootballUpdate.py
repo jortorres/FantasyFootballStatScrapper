@@ -1,38 +1,54 @@
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.keys import Keys
+import time
+import csv
 
-# Set up Selenium WebDriver
-chrome_options = Options()
-chrome_options.add_argument("--headless")  # Run in headless mode
-service = Service('/Users/jordantorres/Desktop/chromedriver')  # Update the path to your chromedriver
-driver = webdriver.Chrome(service=service, options=chrome_options)
+# Configure WebDriver (Update path to your WebDriver)
+driver_path = "path/to/chromedriver"  # Replace with the path to your WebDriver
+driver = webdriver.Chrome(driver_path)
 
-# URL of the fantasy football stats page
-url = 'https://www.espn.com/nfl/stats'
-
-# Open the URL
+# Open the fantasy football stats page
+url = "https://www.fantasypros.com/nfl/rankings/overall.php"  # Example site (use a real one)
 driver.get(url)
 
-# Find the table containing the stats
-table = driver.find_element(By.CSS_SELECTOR, 'table.Table--align-right.Table--fixed.Table--fixed-left')
+# Wait for the page to load
+time.sleep(3)
 
-# Extract the headers
-headers = [header.text for header in table.find_elements(By.TAG_NAME, 'th')]
+# Scrape data
+player_stats = []
 
-# Extract the data rows
-rows = []
-for row in table.find_elements(By.TAG_NAME, 'tr')[1:]:
-    cells = row.find_elements(By.TAG_NAME, 'td')
-    row_data = [cell.text.strip() for cell in cells]
-    rows.append(row_data)
+try:
+    # Locate the table containing player stats
+    table = driver.find_element(By.XPATH, '//table[@id="rank-data"]')  # Adjust XPath as needed
+    rows = table.find_elements(By.XPATH, './/tr')[1:]  # Skip header row
 
-# Print the stats
-print(headers)
-for row in rows:
-    print(row)
+    for row in rows:
+        # Extract individual columns
+        cols = row.find_elements(By.XPATH, './/td')
+        if len(cols) > 1:  # Ensure it's a valid row
+            player_name = cols[1].text  # Name of the player
+            position = cols[2].text  # Position (e.g., QB, RB)
+            team = cols[3].text  # NFL team
+            points = cols[4].text  # Fantasy points
 
-# Close the WebDriver
-driver.quit()
+            player_stats.append({
+                "Name": player_name,
+                "Position": position,
+                "Team": team,
+                "Points": points
+            })
+
+finally:
+    # Close the browser
+    driver.quit()
+
+# Save stats to a CSV file
+output_file = "fantasy_football_stats.csv"
+with open(output_file, mode="w", newline="") as file:
+    writer = csv.DictWriter(file, fieldnames=["Name", "Position", "Team", "Points"])
+    writer.writeheader()
+    writer.writerows(player_stats)
+
+print(f"Scraped {len(player_stats)} players' stats and saved to {output_file}.")
+
